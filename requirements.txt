@@ -1,5 +1,6 @@
-streamlit==1.39.0
-opencv-python==4.10.0.84
-mediapipe==0.10.14
-numpy==1.26.4
-protobuf==4.25.3
+streamlit
+opencv-python-headless
+mediapipe
+numpy
+pandas
+protobuf<4
