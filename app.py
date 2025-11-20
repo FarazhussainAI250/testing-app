@@ -10,13 +10,20 @@ streamlit run app.py
 """
 
 import streamlit as st
-import cv2
-import mediapipe as mp
 import numpy as np
 import pandas as pd
 import time
 from collections import deque, Counter
 from datetime import datetime, timedelta
+
+# Try to import MediaPipe and OpenCV, fallback to demo mode if not available
+try:
+    import cv2
+    import mediapipe as mp
+    DEMO_MODE = False
+except ImportError:
+    DEMO_MODE = True
+    st.warning("Running in demo mode - MediaPipe/OpenCV not available")
 
 # ---------- SETTINGS ----------
 st.set_page_config(page_title="Easy Human Detector", layout="wide", initial_sidebar_state="auto")
@@ -26,10 +33,11 @@ WALK_SPEED_THRESHOLD = 0.012
 EAT_DISTANCE_THRESHOLD = 0.12
 
 # ---------- Helpers ----------
-mp_pose = mp.solutions.pose
-mp_hands = mp.solutions.hands
-mp_drawing = mp.solutions.drawing_utils
-mp_styles = mp.solutions.drawing_styles
+if not DEMO_MODE:
+    mp_pose = mp.solutions.pose
+    mp_hands = mp.solutions.hands
+    mp_drawing = mp.solutions.drawing_utils
+    mp_styles = mp.solutions.drawing_styles
 
 def now_str():
     return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -126,14 +134,18 @@ if clear_history:
 
 # Start/Stop logic
 if start and not st.session_state.running:
-    st.session_state.cap = cv2.VideoCapture(0)
-    if not st.session_state.cap.isOpened():
-        st.error("Camera not available. Close other apps using camera or check permissions.")
-    else:
-        st.session_state.pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-        st.session_state.hands = mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+    if DEMO_MODE:
         st.session_state.running = True
-        st.success("Camera started — aasan mode on ✅")
+        st.success("Demo mode started ✅")
+    else:
+        st.session_state.cap = cv2.VideoCapture(0)
+        if not st.session_state.cap.isOpened():
+            st.error("Camera not available. Close other apps using camera or check permissions.")
+        else:
+            st.session_state.pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+            st.session_state.hands = mp_hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+            st.session_state.running = True
+            st.success("Camera started — aasan mode on ✅")
 
 if stop and st.session_state.running:
     if st.session_state.cap:
@@ -166,6 +178,39 @@ def history_to_df(hist_deque, n=50):
 
 # ---------- Main camera loop (runs while session_state.running) ----------
 if st.session_state.running:
+    if DEMO_MODE:
+        # Demo mode - show sample data
+        sample_data = {
+            "posture": "sitting",
+            "action": "static", 
+            "hand_right": "up",
+            "hand_left": "down",
+            "likely_eating": False
+        }
+        
+        # Add sample entry to history
+        if len(st.session_state.tracker.history) == 0:
+            entry = {"time": datetime.utcnow(), "state": sample_data}
+            st.session_state.tracker.history.append(entry)
+        
+        # Show demo image
+        demo_img = np.random.randint(50, 200, (480, 640, 3), dtype=np.uint8)
+        img_placeholder.image(demo_img)
+        status_text.info(f"Demo Mode — {now_str()}")
+        
+        # Show sample labels
+        labels_box.write("**Demo Detection:**\n" + 
+                        f"Posture: {sample_data['posture']}\n" +
+                        f"Action: {sample_data['action']}\n" +
+                        f"Right hand: {sample_data['hand_right']}\n" +
+                        f"Left hand: {sample_data['hand_left']}")
+        
+        # Show history
+        df_hist = history_to_df(st.session_state.tracker.history, n=10)
+        hist_table.table(df_hist)
+        
+        time.sleep(1)
+    else:
     cap = st.session_state.cap
     pose = st.session_state.pose
     hands = st.session_state.hands
