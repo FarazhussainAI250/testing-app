@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
-import time
-from datetime import datetime
+from PIL import Image
+import io
 
 st.set_page_config(page_title="Movement Detector Demo", layout="wide")
 
@@ -38,14 +38,37 @@ with col1:
         st.session_state.demo_running = False
     
     if st.session_state.demo_running:
-        # Show demo image
-        demo_img = np.random.randint(50, 200, (480, 640, 3), dtype=np.uint8)
-        st.image(demo_img, caption="Demo Detection Frame")
-        st.success("Demo mode running!")
+        st.info("Demo running — browser will ask for camera permission. Take a snapshot for processing below.")
         
-        # Auto refresh every 2 seconds
-        time.sleep(2)
-        st.rerun()
+        # Camera input (single snapshot). Works well on Streamlit Cloud.
+        img_file = st.camera_input("Take a snapshot")
+
+        if img_file:
+            # Display captured image
+            st.image(img_file, caption="Captured frame", use_column_width=True)
+            
+            # Convert to numpy array for any processing you want to do
+            img = Image.open(io.BytesIO(img_file.getvalue()))
+            arr = np.array(img)
+            st.write("Captured image shape:", arr.shape)
+
+            # ----
+            # Place your detection logic here using `arr`
+            # e.g., run a model/pipeline and then show results
+            # For demo, we'll show random "detection" result
+            demo_results = {
+                "posture": "sitting",
+                "action": "static",
+                "hand_right": "up",
+                "hand_left": "down",
+                "likely_eating": False
+            }
+            st.success("Detection results (demo):")
+            for k, v in demo_results.items():
+                st.write(f"**{k.replace('_',' ').title()}:** {v}")
+            # ----
+        else:
+            st.write("Click 'Take a snapshot' to capture a frame.")
     else:
         placeholder_img = np.zeros((480, 640, 3), dtype=np.uint8)
         st.image(placeholder_img, caption="Click Start Demo to begin")
@@ -57,7 +80,7 @@ st.markdown("""
 - **Action Recognition:** Walking vs Static  
 - **Hand Position:** Up, Down, Middle
 - **Eating Detection:** Hand-to-face proximity
-- **Real-time Analysis:** Frame processing
+- **Real-time Analysis:** Frame processing (use streamlit-webrtc for true live)
 """)
 
-st.info("This is a demo version. Full version includes MediaPipe pose detection and camera integration.")
+st.info("This is a demo version. Full version includes MediaPipe pose detection and live camera integration.")
