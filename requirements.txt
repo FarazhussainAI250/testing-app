@@ -1,6 +1,6 @@
 streamlit
-opencv-python-headless
-mediapipe
+
 numpy
 pandas
-protobuf<4
+
+
